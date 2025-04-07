@@ -11,7 +11,42 @@ const getUsers = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+const getme = async (req, res) => {
+    try {
+        // Check if the Authorization header exists and is properly formatted
+        if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
+            return res.status(401).json({ message: 'No token provided or invalid format' });
+        }
 
+        // Extract the token
+        const token = req.headers.authorization.split(' ')[1];
+
+        // Verify and decode the token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(401).json({ message: 'Invalid or expired token' });
+        }
+
+        // Extract the email from the decoded token
+        const userEmail = decoded.email;
+        if (!userEmail) {
+            return res.status(400).json({ message: 'Token does not contain email' });
+        }
+
+        // Find the user using the email (case-insensitive query)
+        const user = await User.findOne({ email: { $regex: new RegExp(`^${userEmail}$`, 'i') } }).select('full_name email');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Return the user's details
+        return res.status(200).json({ full_name: user.full_name, email: user.email });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
 // Register a new user
 const registerUser = async (req, res) => {
     try {
@@ -48,15 +83,14 @@ const loginUser = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-        // Generate JWT token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        // Generate JWT token with email
+        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         res.status(200).json({ message: 'Login successful', token });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
-};
-// Forgot Password (dummy response for now)
+};// Forgot Password 
 const forgotPassword = async (req, res) => {
     try {
         const { email, newPassword } = req.body;
@@ -135,4 +169,4 @@ const deleteUser = async (req, res) => {
 
 
 
-module.exports = { getUsers, registerUser, loginUser,deleteUser, forgotPassword, editProfile };
+module.exports = { getUsers, registerUser, loginUser,deleteUser, forgotPassword, editProfile,getme };
