@@ -79,6 +79,33 @@ const forgotPassword = async (req, res) => {
     }
 };
 
+// Edit Profile for user
+const editProfile = async(req,res) =>{
+    try{
+        const {email, newFullname, newPassword} = req.body;//required fields to edit profile
+        // Check if the user exists
+        const user = await User.findOne({email});
+        if(!user){
+            return res.status(404).json({message:"User not founf"});
+        }
+
+        if (newFullname){
+            user.full_name = newFullname;
+        }
+        if (newPassword){
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(newPassword,salt);
+
+        }
+
+        await user.save();
+        
+        res.status(200).json({message:"Profile updated successfully"});
+    }catch(error){
+        res.status(500).json({message:error.message});
+    }
+};
+
 
 // Delete user account
 const deleteUser = async (req, res) => {
@@ -106,4 +133,6 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { getUsers, registerUser, loginUser,deleteUser, forgotPassword };
+
+
+module.exports = { getUsers, registerUser, loginUser,deleteUser, forgotPassword, editProfile };
