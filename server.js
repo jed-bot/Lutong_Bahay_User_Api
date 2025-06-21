@@ -1,7 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const userRoutes = require('./src/Routes/authRoute.js'); // ✅ Make sure this matches your folder structure
+const userRoutes = require('./src/Routes/authRoute.js'); 
+const useingredientRoute = require('./src/Routes/ingredientRouter.js');
+const recipeRouters = require('./src/Routes/recipeRouter.js');
 
 dotenv.config();
 const app = express();
@@ -13,6 +15,9 @@ app.use(express.json()); // Allows JSON request bodies
 
 // Routes
 app.use('/api/auth', userRoutes);
+app.use('/api/ingredients', useingredientRoute);
+app.use('/api/recipes',recipeRouters);
+
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
@@ -22,4 +27,4 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(` Server running at: http://localhost:${PORT}`));

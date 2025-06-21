@@ -1,21 +1,21 @@
 const User = require('../Models/userModel.js'); // Ensure the correct path
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const { errorHandler, notFoundError, Validate, Unauthorized, Existing, Incorrect} = require('../Middleware/errorHandling.js');
 // Get all users (for testing, remove in production)
-const getUsers = async (req, res) => {
+const getUsers = async (req, res,next) => {
     try {
         const users = await User.find().select('-password'); // Exclude passwords
         res.status(200).json(users);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        next(error);//passing the error to the error handler
     }
 };
-const getme = async (req, res) => {
+const getme = async (req, res,next) => {
     try {
         // Check if the Authorization header exists and is properly formatted
         if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
-            return res.status(401).json({ message: 'No token provided or invalid format' });
+            return Unauthorized(req,res,next);
         }
 
         // Extract the token
@@ -25,37 +25,38 @@ const getme = async (req, res) => {
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (err) {
-            return res.status(401).json({ message: 'Invalid or expired token' });
+        } catch (error) {
+            next(error);
         }
 
         // Extract the email from the decoded token
         const userEmail = decoded.email;
         if (!userEmail) {
-            return res.status(400).json({ message: 'Token does not contain email' });
+            return Unauthorized(req, res,next);
         }
 
-        // Find the user using the email (case-insensitive query)
+         // Find the user using the email (case-insensitive query)
         const user = await User.findOne({ email: { $regex: new RegExp(`^${userEmail}$`, 'i') } }).select('full_name email');
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return notFoundError(req, res,next);
         }
 
         // Return the user's details
         return res.status(200).json({ full_name: user.full_name, email: user.email });
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+      next(error);
     }
 };
 // Register a new user
-const registerUser = async (req, res) => {
+const registerUser = async (req, res,next) => {
     try {
         const { full_name, email, password } = req.body;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
-        if (existingUser) return res.status(400).json({ message: 'Email already in use' });
-
+        if (existingUser){
+             return Existing(req,res,next);
+        }
         // Hash the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -66,39 +67,43 @@ const registerUser = async (req, res) => {
 
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        next(error);
     }
 };
 
 // Login user
-const loginUser = async (req, res) => {
+const loginUser = async (req, res,next) => {
     try {
         const { email, password } = req.body;
 
         // Check if user exists
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (!user) {
+            return notFoundError(req,res,next);
+        }
 
         // Check password
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+        if (!isMatch) {
+            return Incorrect(req,res,next);
+        }
 
         // Generate JWT token with email
         const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         res.status(200).json({ message: 'Login successful', token });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        next(error);
     }
 };// Forgot Password 
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res,next) => {
     try {
         const { email, newPassword } = req.body;
 
         // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+           return notFoundError(req,res,next);
         }
 
         // Hash the new password
@@ -120,7 +125,7 @@ const editProfile = async(req,res) =>{
         // Check if the user exists
         const user = await User.findOne({email});
         if(!user){
-            return res.status(404).json({message:"User not founf"});
+           return notFoundError(req,res);
         }
 
         if (newFullname){
@@ -136,7 +141,7 @@ const editProfile = async(req,res) =>{
         
         res.status(200).json({message:"Profile updated successfully"});
     }catch(error){
-        res.status(500).json({message:error.message});
+        next(error);
     }
 };
 
@@ -149,13 +154,13 @@ const deleteUser = async (req, res) => {
         // Check if the user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return notFoundError(req, res);
         }
 
         // Verify password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: "Incorrect password" });
+           return Incorrect(req,res);
         }
 
         // Delete the user
@@ -163,7 +168,7 @@ const deleteUser = async (req, res) => {
         res.status(200).json({ message: "Account deleted successfully" });
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        next(error);
     }
 };
 
