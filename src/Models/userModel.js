@@ -10,7 +10,12 @@ const userSchema = new mongoose.Schema({
         unique: true },
     password: { 
         type: String, 
-        required: true }
+        required: true },
+    avatar:{
+        type: String,
+        enum:["avatar1.jpg","avatar2.jpg","avatar3.jpg","avatar4.jpg","avatar5.jpg"],
+        default: "avatar1.jpg"
+    }
 }, 
 { 
     timestamps: true 

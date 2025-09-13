@@ -1,6 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+//const {fileURLToPath} = require('url');
+const path = require('path');
+
+//importing routes
 const userRoutes = require('./src/Routes/authRoute.js'); 
 const useingredientRoute = require('./src/Routes/ingredientRouter.js');
 const recipeRouters = require('./src/Routes/recipeRouter.js');
@@ -8,15 +12,22 @@ const recipeRouters = require('./src/Routes/recipeRouter.js');
 dotenv.config();
 const app = express();
 
+
+
 // Middleware
 app.use(express.json()); // Allows JSON request bodies
 
 // Function to detect ingredients
-
+//const __filename = fileURLToPath(import.meta.url);
+//const __dirname = path.dirname(__filename);
 // Routes
 app.use('/api/auth', userRoutes);
 app.use('/api/ingredients', useingredientRoute);
 app.use('/api/recipes',recipeRouters);
+
+//static files for the avatars
+app.use('/avatars', express.static(path.join(__dirname,'src/public/avatars')));
+
 
 
 // Connect to MongoDB
